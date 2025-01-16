@@ -1,0 +1,22 @@
+{
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "name": "raw-backend-server",
+  "version": "1.0.0",
+  "description": "backend server made of raw language concepts without using any libraries",
+  "main": "src/server.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "nodemon src/server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.10.6",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

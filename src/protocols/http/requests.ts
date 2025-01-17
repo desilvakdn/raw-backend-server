@@ -1,38 +1,53 @@
 import { Socket } from "node:net";
 import { Method } from "../../types/methodTypes";
-import RequestType from "../../types/requestType";
 import HttpResponse from "./response";
 import statusCodes from "../../utils/statusCodes";
+import { ProtocolType } from "../../types/httpTypes";
+import parseValue from "../../modules/valueParser";
 
-export default class HttpRequest {
-  request: RequestType | null;
+class Request {
+  method?: Method;
+  route?: string;
+  protocol?: ProtocolType;
+  headers: Map<string, string> = new Map();
+  contentLength?: number;
+  body?: string;
+  params = new Map<string, any>();
+
+  constructor(
+    method?: Method,
+    route?: string,
+    protocol?: ProtocolType,
+    headers?: Map<string, string>,
+    contentLength?: number,
+    body?: string
+  ) {
+    this.method = method;
+    this.route = route;
+    this.protocol = protocol;
+    this.headers = headers || new Map();
+    this.contentLength = contentLength;
+    this.body = body;
+  }
+}
+
+export default class HttpRequest extends Request {
   #response;
 
   constructor();
   constructor(data?: string, socket?: Socket);
 
   constructor(data?: string, socket?: Socket) {
+    super();
     if (data && socket) {
-      const request = this.#processRequestString(data);
-      this.request = request;
+      this.#processRequestString(data);
       this.#response = new HttpResponse(socket);
-    } else {
-      this.request = null;
     }
   }
 
   #processRequestString(requestString: string) {
     if (!requestString || !requestString?.trim())
       return this.#handleBadRequest();
-    let request: RequestType = {
-      method: "GET",
-      route: "",
-      protocol: {
-        name: "",
-        version: -1,
-      },
-      headers: new Map(),
-    };
     const seperatedString = requestString
       .split("\r\n\r\n")
       .map((e) => e.trim());
@@ -57,36 +72,45 @@ export default class HttpRequest {
     if (!validMethods.has(requestLine[0] as Method))
       return this.#handleBadRequest();
 
-    request.method = requestLine[0] as Method;
-    request.route = requestLine[1];
+    this.method = requestLine[0] as Method;
+
+    const [base, params] = requestLine[1]?.split("?") || [];
+    this.route = base;
+    if (params) {
+      this.params = params.split("&").reduce((map, curr) => {
+        const [key, value] = curr.split("=");
+        return map.set(
+          key,
+          value ? parseValue(decodeURIComponent(value)) : value
+        );
+      }, new Map<string, any>());
+    }
+
     const protocolString = requestLine[2].split("/").map((e) => e.trim());
     if (protocolString.length < 2 || isNaN(parseFloat(protocolString[1])))
       return this.#handleBadRequest();
-    request.protocol.name = protocolString[0];
-    request.protocol.version = parseFloat(protocolString[1]);
+    this.protocol = {
+      name: protocolString[0],
+      version: parseFloat(protocolString[1]),
+    };
     try {
       headerRowsList.slice(1).forEach((singleRow) => {
         const [key, value] = singleRow.split(":");
-        request.headers.set(key.trim(), value.trim());
+        this.headers.set(key.trim(), value.trim());
       });
     } catch (error) {
       return this.#handleBadRequest();
     }
 
     const methodsNotAllowedBody = new Set<Method>(["GET", "DELETE"]);
-    if (
-      1 < seperatedString.length &&
-      !methodsNotAllowedBody.has(request.method)
-    ) {
-      request.body = seperatedString[1];
+    if (1 < seperatedString.length && !methodsNotAllowedBody.has(this.method)) {
+      this.body = seperatedString[1];
     }
 
-    if (!request.headers.has("Content-Length") && request.body)
+    if (!this.headers.has("Content-Length") && this.body)
       return this.#handleBadRequest();
 
-    request.contentLength = Number(request.headers.get("Content-Length"));
-
-    return request;
+    this.contentLength = Number(this.headers.get("Content-Length"));
   }
 
   #handleBadRequest() {
@@ -97,12 +121,4 @@ export default class HttpRequest {
     }
     return null;
   }
-
-  // #processHeaders(headersString: string) {
-  //   const headerRowsList = headersString.split("\r\n").map((e) => e.trim());
-  //   let headerMap = new Map();
-  //   headerRowsList.forEach((row:string)=>{
-  //     headerMap.
-  //   })
-  // }
 }

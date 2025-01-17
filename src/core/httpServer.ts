@@ -2,7 +2,6 @@ import net from "node:net";
 import HttpResponse from "../protocols/http/response";
 import HttpRequest from "../protocols/http/requests";
 import statusCodes from "../utils/statusCodes";
-import RequestType from "../types/requestType";
 import { Router } from "../protocols/http/router";
 
 class HttpServer extends Router {
@@ -17,12 +16,10 @@ class HttpServer extends Router {
         const message = data.toString();
         const httpRequest = new HttpRequest(message, socket);
         const httpResponse = new HttpResponse(socket);
-        if (httpRequest.request !== null) {
-          const request: RequestType = httpRequest.request;
-
-          if (this.routes.has(request.route)) {
-            const endPoint = this.routes.get(request.route);
-            const handler = endPoint?.[request.method];
+        if (httpRequest.method !== undefined) {
+          if (httpRequest.route && this.routes.has(httpRequest.route)) {
+            const endPoint = this.routes.get(httpRequest.route);
+            const handler = endPoint?.[httpRequest.method];
             if (handler) {
               handler(httpRequest, httpResponse);
             } else {

@@ -1,8 +1,8 @@
 import net from "node:net";
-import HttpResponse from "../protocols/http/response";
-import HttpRequest from "../protocols/http/requests";
-import statusCodes from "../utils/statusCodes";
-import { Router } from "../protocols/http/router";
+import HttpResponse from "./protocols/http/response";
+import HttpRequest from "./protocols/http/requests";
+import statusCodes from "./utils/statusCodes";
+import { Router } from "./protocols/http/router";
 
 class HttpServer extends Router {
   server;
@@ -17,8 +17,34 @@ class HttpServer extends Router {
         const httpRequest = new HttpRequest(message, socket);
         const httpResponse = new HttpResponse(socket);
         if (httpRequest.method !== undefined) {
-          if (httpRequest.route && this.routes.has(httpRequest.route)) {
-            const endPoint = this.routes.get(httpRequest.route);
+          if (httpRequest.route) {
+            let endPoint = null;
+
+            if (this.routes.has(httpRequest.route)) {
+              endPoint = this.routes.get(httpRequest.route);
+            } else {
+              for (let [key, values] of this.routes) {
+                const regexPattern = new RegExp(
+                  "^" +
+                    key
+                      .replace(/:([^/]+)/g, "(?<$1>[^/]+)")
+                      .replace(/\//g, "\\/") +
+                    "$"
+                );
+
+                const match = httpRequest.route.match(regexPattern);
+                if (match) {
+                  endPoint = values;
+                  const groups = match.groups;
+                  if (groups) {
+                    httpRequest.paths = new Map(Object.entries(groups));
+                  }
+
+                  break;
+                }
+              }
+            }
+
             const handler = endPoint?.[httpRequest.method];
             if (handler) {
               handler(httpRequest, httpResponse);

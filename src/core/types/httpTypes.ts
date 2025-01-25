@@ -1,6 +1,6 @@
-import HttpRequest from "../protocols/http/requests";
-import HttpResponse from "../protocols/http/response";
-import { Methods } from "../protocols/http/router";
+import HttpRequest from "../core/protocols/http/requests";
+import HttpResponse from "../core/protocols/http/response";
+import { Methods } from "../core/protocols/http/router";
 
 export interface ProtocolType {
   name: string;
